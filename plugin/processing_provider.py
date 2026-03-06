@@ -58,19 +58,23 @@ class SpatialConnectProvider(QgsProcessingProvider):
 
 class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     """
-    Apply x(t+dt) = x(t) · T^n to a raster using a Lagrangian transition matrix T.
+    Apply x(t+n·dt) = x(t) · T^n to a raster using a Lagrangian transition matrix T.
 
     Parameters visible in the Processing Toolbox
     --------------------------------------------
-    INPUT      – raster layer (initial distribution)
-    MASK       – optional land/sea mask raster (same grid as INPUT)
+    INPUT      – raster layer (initial distribution, GeoTIFF)
     MATRIX     – transition matrix file (.mtx / .npz)
     ITERATIONS – integer n (each step = 1 dt of the particle model)
     MODE       – discrete | continuous
-    TRANSPOSE  – bool  (True = x·T convention; False = C·x legacy)
     CLIP_NEG   – bool
-    NODATA     – float
+    NORMALISE  – bool
+    NODATA     – float (optional, auto-detected from raster)
     OUTPUT     – destination raster
+
+    Hidden / not exposed in UI (kept for programmatic use)
+    -------------------------------------------------------
+    MASK       – explicit land/sea mask raster (auto-inferred from NaN cells when absent)
+    TRANSPOSE  – always True (x·T Lagrangian convention); False = legacy T·x
     """
 
     INPUT      = "INPUT"
@@ -86,12 +90,8 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterRasterLayer(
-            self.INPUT, "Input raster layer (initial distribution)"
-        ))
-        self.addParameter(QgsProcessingParameterRasterLayer(
-            self.MASK,
-            "Land/sea mask raster (optional — use when matrix covers only valid cells)",
-            optional=True,
+            self.INPUT,
+            "Input raster (GeoTIFF — initial spatial distribution)"
         ))
         self.addParameter(QgsProcessingParameterFile(
             self.MATRIX,
@@ -100,19 +100,15 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
             optional=False,
         ))
         self.addParameter(QgsProcessingParameterNumber(
-            self.ITERATIONS, "Number of time steps (each = 1 dt of the particle model)",
+            self.ITERATIONS,
+            "Number of time steps  (each step = 1 dt of the particle-tracking model)",
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=1, minValue=1,
         ))
         self.addParameter(QgsProcessingParameterEnum(
             self.MODE, "Propagation mode",
-            options=["discrete  (C^n · x)", "continuous  (expm(n·C) · x)"],
+            options=["discrete  x·Tⁿ", "continuous  x·expm(n·T)"],
             defaultValue=0,
-        ))
-        self.addParameter(QgsProcessingParameterBoolean(
-            self.TRANSPOSE,
-            "Use transition convention (x·T) — True for Lagrangian particle models",
-            defaultValue=True,
         ))
         self.addParameter(QgsProcessingParameterBoolean(
             self.CLIP_NEG, "Clip negative values to 0",
@@ -120,13 +116,14 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         ))
         self.addParameter(QgsProcessingParameterBoolean(
             self.NORMALISE,
-            "Row-normalise matrix (Markov chain — conserves total mass)",
+            "Row-normalise matrix (conserves total mass — Markov chain)",
             defaultValue=False,
         ))
         self.addParameter(QgsProcessingParameterNumber(
-            self.NODATA, "NoData value",
+            self.NODATA,
+            "NoData value (leave blank → auto-detected from raster file)",
             type=QgsProcessingParameterNumber.Double,
-            defaultValue=-9999, optional=True,
+            optional=True,
         ))
         self.addParameter(QgsProcessingParameterRasterDestination(
             self.OUTPUT, "Output propagated raster"
@@ -139,19 +136,25 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 
         # ── inputs ──────────────────────────────────────────────────
         raster_layer = self.parameterAsRasterLayer(parameters, self.INPUT, context)
-        mask_layer   = self.parameterAsRasterLayer(parameters, self.MASK, context)
         matrix_path  = self.parameterAsFile(parameters, self.MATRIX, context)
         iterations   = self.parameterAsInt(parameters, self.ITERATIONS, context)
         mode_idx     = self.parameterAsEnum(parameters, self.MODE, context)
         mode         = ["discrete", "continuous"][mode_idx]
-        transpose    = self.parameterAsBool(parameters, self.TRANSPOSE, context)
         clip_neg     = self.parameterAsBool(parameters, self.CLIP_NEG, context)
         normalise    = self.parameterAsBool(parameters, self.NORMALISE, context)
         out_path     = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
 
-        try:
+        # TRANSPOSE is not exposed in the UI — Lagrangian matrices always use
+        # the x·T row-vector convention (T[i,j] = fraction flowing from cell i
+        # to cell j).  Set parameters[TRANSPOSE]=False only if your matrix
+        # uses the opposite T[i,j] = contribution from j to i convention.
+        transpose = parameters.get(self.TRANSPOSE, True)
+
+        # Nodata: use the explicitly provided value, otherwise fall back to
+        # the value embedded in the raster file (meta.nodata).
+        if parameters.get(self.NODATA) is not None:
             nodata_val = self.parameterAsDouble(parameters, self.NODATA, context)
-        except Exception:
+        else:
             nodata_val = None
 
         feedback.setProgress(5)
@@ -159,19 +162,52 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         array, meta = RasterUtils.read_raster(raster_layer.source())
         if nodata_val is None and meta.nodata is not None:
             nodata_val = meta.nodata
+        feedback.pushInfo(f"NoData value: {nodata_val}")
 
         feedback.setProgress(20)
         feedback.pushInfo(f"Loading transition matrix: {matrix_path}")
-        loader = MatrixLoader()
         import numpy as np
+        loader = MatrixLoader()
         mat = loader.load(matrix_path)
 
-        # Build cell-ID mapping from mask (if provided)
-        cell_ids = None
-        if mask_layer is not None:
-            feedback.pushInfo(f"Building cell-ID mapping from mask: {mask_layer.source()}")
-            mask_array, _ = RasterUtils.read_raster(mask_layer.source())
+        # Build cell-ID mapping
+        # Priority: explicit MASK parameter (hidden, for programmatic use)
+        #           → auto-detect from NaN/nodata cells in the raster
+        mask_layer = None
+        if parameters.get(self.MASK) is not None:
+            mask_src = parameters[self.MASK]
+            if hasattr(mask_src, 'source'):
+                mask_src = mask_src.source()
+            feedback.pushInfo(f"Building cell-ID mapping from explicit mask: {mask_src}")
+            mask_array, _ = RasterUtils.read_raster(mask_src)
             cell_ids = RasterUtils.compute_cell_ids(mask_array)
+        else:
+            cell_ids = None
+            # Replicate the original xarray .dropna() approach: treat NaN and
+            # nodata cells as invalid so that N = number of valid cells, not
+            # rows × cols.  This allows matrices built on a masked sub-domain
+            # (e.g. ocean-only) to be used without an explicit mask file.
+            arr2d = array if array.ndim == 2 else array[:, :, 0]
+            valid = ~np.isnan(arr2d)
+            if nodata_val is not None and not np.isnan(float(nodata_val)):
+                valid &= (arr2d != nodata_val)
+            n_valid = int(valid.sum())
+            n_matrix = mat.shape[0]
+            if 0 < n_valid < arr2d.size and n_valid == n_matrix:
+                flat_valid = valid.flatten()
+                cumsum_ids = np.cumsum(flat_valid) - 1
+                cell_ids = np.where(flat_valid, cumsum_ids, -1).reshape(arr2d.shape)
+                feedback.pushInfo(
+                    f"Auto cell-ID mapping: {n_valid} valid cells "
+                    f"(nodata excluded) → matches matrix ({n_matrix}×{n_matrix})"
+                )
+            elif n_valid != n_matrix and arr2d.size != n_matrix:
+                feedback.reportError(
+                    f"Matrix size ({n_matrix}×{n_matrix}) matches neither the full raster "
+                    f"({arr2d.size} cells) nor the non-nodata cells ({n_valid}). "
+                    f"Provide an explicit Mask raster whose valid cells number {n_matrix}.",
+                    fatalError=True,
+                )
 
         feedback.setProgress(40)
         feedback.pushInfo(
@@ -200,15 +236,17 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     # ── metadata ────────────────────────────────────────────────────────────
 
     def name(self):        return "propagate_raster"
-    def displayName(self): return "Propagate Raster (single scenario)"
-    def group(self):       return "SpatialConnect"
-    def groupId(self):     return "spatialconnect"
+    def displayName(self): return "Propagate Raster"
+    def group(self):       return ""
+    def groupId(self):     return ""
     def shortHelpString(self): return (
-        "Apply a transition matrix T to a raster x for n time steps:\n\n"
-        "  x(t+n·dt) = x(t) · T^n  (discrete, default)\n"
-        "  x(t+n·dt) = x(t) · expm(n·T)  (continuous)\n\n"
-        "Transition matrix formats: MatrixMarket (.mtx) or NumPy sparse (.npz).\n\n"
-        "Provide a land/sea mask to handle domains where N < rows×cols."
+        "Apply a Lagrangian transition matrix T to a GeoTIFF raster x for n time steps:\n\n"
+        "  discrete:    x(t+n·dt) = x(t) · Tⁿ\n"
+        "  continuous:  x(t+n·dt) = x(t) · expm(n·T)\n\n"
+        "T[i,j] = fraction of particles that move from cell i to cell j in one dt.\n\n"
+        "Supported matrix formats: MatrixMarket (.mtx) or NumPy sparse (.npz).\n\n"
+        "Non-ocean cells (NaN/NoData) are automatically excluded so that the\n"
+        "matrix size N can be smaller than rows × cols of the raster."
     )
 
     def createInstance(self):
@@ -220,7 +258,12 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 # ============================================================================
 
 def _ensure_core_importable():
-    """Add the parent package directory to sys.path if needed."""
-    parent = str(Path(__file__).parent.parent)
+    """Add the parent package directory to sys.path if needed.
+
+    Path(__file__) may point to the *symlink* location inside the QGIS
+    plugins directory rather than the real project root, so we must resolve
+    the symlink first (same approach used in __init__.py).
+    """
+    parent = str(Path(__file__).resolve().parent.parent)
     if parent not in sys.path:
         sys.path.insert(0, parent)

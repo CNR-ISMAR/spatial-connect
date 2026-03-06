@@ -177,8 +177,8 @@ result = p.run(burned, T, iterations=30)
 
 ## Processing Toolbox
 
-The plugin registers the algorithm **"Propagate Raster (single scenario)"**
-under the *SpatialConnect* group.  Scriptable from PyQGIS:
+The plugin registers the algorithm **"Propagate Raster"**
+under the *SpatialConnect* provider.  Scriptable from PyQGIS:
 
 ```python
 import processing
@@ -187,10 +187,8 @@ result = processing.run("spatialconnect:propagate_raster", {
     "MATRIX":         "/data/sparse_transition_matrix.mtx",
     "ITERATIONS":     10,
     "MODE":           0,        # 0=discrete, 1=continuous
-    "TRANSPOSE":      True,
     "NORMALISE":      False,
     "CLIP_NEGATIVES": True,
-    "NODATA":         -9999,
     "OUTPUT":         "/tmp/output.tif",
 })
 ```
@@ -216,6 +214,18 @@ pytest tests/ -v
 
 ---
 
+
+## Future works
+
+- **Propagate Vector** — a dedicated Processing algorithm that accepts a vector layer
+  (point/polygon) as initial distribution, rasterises it onto a reference grid via
+  `RasterUtils.vector_to_raster()` (requires `fiona`), runs the propagation, and
+  returns a GeoTIFF output.  Parameters would include the burn attribute, fill value,
+  and `all_touched` option.
+- Batch / multi-scenario mode (loop over a folder of rasters or matrix time-slices).
+- Time-series output (store all *n* intermediate steps as a multi-band raster).
+
+---
 
 ## License
 
