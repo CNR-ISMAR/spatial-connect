@@ -64,6 +64,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     ITERATIONS – integer n (each step = 1 dt of the particle model)
     MODE       – discrete | continuous
     CLIP_NEG   – bool
+    TRANSPOSE  – bool  (True = x·T, T[i,j]=flow i→j; False = T·x, T[i,j]=contribution j→i)
     NORMALISE  – bool
     NODATA     – float (optional, auto-detected from raster)
     OUTPUT     – destination raster
@@ -71,7 +72,6 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     Hidden / not exposed in UI (kept for programmatic use)
     -------------------------------------------------------
     MASK       – explicit land/sea mask raster (auto-inferred from NaN cells when absent)
-    TRANSPOSE  – always True (x·T Lagrangian convention); False = legacy T·x
     """
 
     INPUT      = "INPUT"
@@ -112,6 +112,12 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
             defaultValue=True,
         ))
         self.addParameter(QgsProcessingParameterBoolean(
+            self.TRANSPOSE,
+            "Matrix convention: T[i,j] = flow from i → j  (x·T, Lagrangian / OpenDrift)"
+            " — uncheck if T[i,j] = contribution from j to i  (T·x, some hydrological models)",
+            defaultValue=True,
+        ))
+        self.addParameter(QgsProcessingParameterBoolean(
             self.NORMALISE,
             "Row-normalise matrix (conserves total mass — Markov chain)",
             defaultValue=False,
@@ -136,14 +142,9 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         mode_idx     = self.parameterAsEnum(parameters, self.MODE, context)
         mode         = ["discrete", "continuous"][mode_idx]
         clip_neg     = self.parameterAsBool(parameters, self.CLIP_NEG, context)
+        transpose    = self.parameterAsBool(parameters, self.TRANSPOSE, context)
         normalise    = self.parameterAsBool(parameters, self.NORMALISE, context)
         out_path     = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
-
-        # TRANSPOSE is not exposed in the UI — Lagrangian matrices always use
-        # the x·T row-vector convention (T[i,j] = fraction flowing from cell i
-        # to cell j).  Set parameters[TRANSPOSE]=False only if your matrix
-        # uses the opposite T[i,j] = contribution from j to i convention.
-        transpose = parameters.get(self.TRANSPOSE, True)
 
         # Nodata: use the explicitly provided value, otherwise fall back to
         # the value embedded in the raster file (meta.nodata).
@@ -238,8 +239,12 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         "Apply a Lagrangian transition matrix T to a GeoTIFF raster x for n time steps:\n\n"
         "  discrete:    x(t+n·dt) = x(t) · Tⁿ\n"
         "  continuous:  x(t+n·dt) = x(t) · expm(n·T)\n\n"
-        "T[i,j] = fraction of particles that move from cell i to cell j in one dt.\n\n"
         "Supported matrix formats: MatrixMarket (.mtx) or NumPy sparse (.npz).\n\n"
+        "Matrix convention (TRANSPOSE):\n"
+        "  ✔ checked (default) — T[i,j] = fraction flowing from cell i to cell j\n"
+        "    (x·T row-vector convention — Lagrangian models, OpenDrift)\n"
+        "  ✘ unchecked          — T[i,j] = contribution from cell j to cell i\n"
+        "    (T·x column-vector convention — some hydrological / graph models)\n\n"
         "Non-ocean cells (NaN/NoData) are automatically excluded so that the\n"
         "matrix size N can be smaller than rows × cols of the raster."
     )

@@ -67,7 +67,18 @@ pip install -r requirements.txt
 
 ### QGIS plugin
 
-**Option A — Install from ZIP** (recommended for end users)
+> ⚠️ **Do not use the "Download ZIP" button on GitHub** — that ZIP contains the
+> whole repository and cannot be installed directly in QGIS.
+> Use one of the options below instead.
+
+**Option A — Download from GitHub Releases** (recommended for end users)
+
+Go to the [Releases page](https://github.com/CNR-ISMAR/spatial-connect/releases)
+and download `SpatialConnect-<version>.zip`.
+
+Then in QGIS: **Plugins → Manage and Install Plugins → Install from ZIP → select the file**.
+
+**Option B — Build the ZIP locally** (if you have the repo cloned)
 
 ```bash
 python build_plugin_zip.py        # cross-platform (Linux / macOS / Windows)
@@ -75,12 +86,9 @@ python build_plugin_zip.py        # cross-platform (Linux / macOS / Windows)
 ./build_plugin_zip.sh
 ```
 
-Then in QGIS: **Plugins → Manage and Install Plugins → Install from ZIP → select the file**.
+The file is created in `dist/SpatialConnect-<version>.zip` — install it as above.
 
-The ZIP bundles `core/` inside the plugin folder so no extra setup is needed.
-Missing dependencies (`scipy`, `rasterio`) are auto-installed on first load.
-
-**Option B — Symlink** (recommended for developers)
+**Option C — Symlink** (recommended for developers)
 
 Symlink `plugin/` into the QGIS plugins directory as `SpatialConnect`:
 
