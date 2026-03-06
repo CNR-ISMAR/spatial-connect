@@ -11,9 +11,6 @@ Exposes the propagation as a standard Processing algorithm so it can be:
 from __future__ import annotations
 
 import os
-import sys
-import traceback
-from pathlib import Path
 
 from qgis.core import (
     QgsProcessingProvider,
@@ -130,9 +127,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         ))
 
     def processAlgorithm(self, parameters, context, feedback):
-        _ensure_core_importable()
-
-        from core import SpatialPropagator, MatrixLoader, RasterUtils
+        from .core import SpatialPropagator, MatrixLoader, RasterUtils
 
         # ── inputs ──────────────────────────────────────────────────
         raster_layer = self.parameterAsRasterLayer(parameters, self.INPUT, context)
@@ -257,13 +252,4 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 # Helpers
 # ============================================================================
 
-def _ensure_core_importable():
-    """Add the parent package directory to sys.path if needed.
-
-    Path(__file__) may point to the *symlink* location inside the QGIS
-    plugins directory rather than the real project root, so we must resolve
-    the symlink first (same approach used in __init__.py).
-    """
-    parent = str(Path(__file__).resolve().parent.parent)
-    if parent not in sys.path:
-        sys.path.insert(0, parent)
+# (no path helpers needed — core/ is bundled inside this package)

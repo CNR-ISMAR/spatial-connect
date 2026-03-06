@@ -27,24 +27,27 @@ where **x** is a row vector of cell values and **T** is the transition matrix
 
 ```
 spatial-connect/
-├── core/
-│   ├── __init__.py
-│   ├── matrix_loader.py     – load .mtx / .npz transition matrices
-│   ├── propagator.py        – SpatialPropagator (discrete + continuous)
-│   └── raster_utils.py      – read/write GeoTIFF, compute_cell_ids,
-│                               vector_to_raster (optional, requires fiona)
-├── plugin/
-│   ├── __init__.py          – QGIS classFactory + venv path injection
+├── plugin/                  – QGIS plugin (self-contained, zippable)
+│   ├── __init__.py          – QGIS classFactory
 │   ├── metadata.txt         – QGIS plugin metadata
 │   ├── spatial_connect.py   – plugin lifecycle (registers Processing provider)
 │   ├── processing_provider.py  – Processing Toolbox algorithm
-│   └── dependencies.py      – auto-install missing packages at load time
+│   ├── dependencies.py      – auto-install missing packages at load time
+│   └── core/                – standalone propagation library
+│       ├── __init__.py
+│       ├── matrix_loader.py     – load .mtx / .npz transition matrices
+│       ├── propagator.py        – SpatialPropagator (discrete + continuous)
+│       └── raster_utils.py      – read/write GeoTIFF, compute_cell_ids,
+│                                   vector_to_raster (optional, requires fiona)
 ├── tests/
 │   ├── conftest.py
 │   ├── test_propagator.py
 │   ├── test_matrix_loader.py
 │   ├── test_raster_utils.py
 │   └── test_integration.py
+├── examples/
+├── build_plugin_zip.py      – creates dist/SpatialConnect-<version>.zip  (cross-platform)
+├── build_plugin_zip.sh      – same, bash shortcut for Linux/macOS
 ├── requirements.txt
 ├── pytest.ini
 └── README.md
@@ -64,6 +67,21 @@ pip install -r requirements.txt
 
 ### QGIS plugin
 
+**Option A — Install from ZIP** (recommended for end users)
+
+```bash
+python build_plugin_zip.py        # cross-platform (Linux / macOS / Windows)
+# or on Linux/macOS:
+./build_plugin_zip.sh
+```
+
+Then in QGIS: **Plugins → Manage and Install Plugins → Install from ZIP → select the file**.
+
+The ZIP bundles `core/` inside the plugin folder so no extra setup is needed.
+Missing dependencies (`scipy`, `rasterio`) are auto-installed on first load.
+
+**Option B — Symlink** (recommended for developers)
+
 Symlink `plugin/` into the QGIS plugins directory as `SpatialConnect`:
 
 ```bash
@@ -77,20 +95,16 @@ mklink /D "%APPDATA%\QGIS\QGIS3\profiles\default\python\plugins\SpatialConnect" 
 
 Then in QGIS: **Plugins → Manage and Install Plugins → Installed → SpatialConnect → Enable**.
 
-The plugin tries to auto-install missing dependencies (`scipy`, `rasterio`)
-via `pip --user` on first load.  If that fails, install them manually in the
-Python used by QGIS:
-
-```bash
-pip install scipy rasterio          # core
-pip install fiona                   # optional: only for vector_to_raster
-```
+Changes to the source files are reflected immediately (reload plugin to pick them up).
 
 ---
 
 ## Quick start (Python API)
 
 ```python
+import sys
+sys.path.insert(0, "path/to/spatial-connect/plugin")   # adds core/ to the path
+
 from core import SpatialPropagator, MatrixLoader, RasterUtils
 
 # 1. Load raster
@@ -101,7 +115,7 @@ T = MatrixLoader().load("sparse_transition_matrix.mtx")
 
 # 3. Propagate  (10 discrete steps, x·T convention)
 p = SpatialPropagator(mode="discrete")
-result = p.run(array, T, iterations=10, nodata_value=-9999)
+result = p.run(array, T, iterations=10)
 
 # 4. Save
 RasterUtils.write_raster("output.tif", result.output, meta)

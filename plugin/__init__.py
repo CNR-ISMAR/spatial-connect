@@ -6,23 +6,20 @@ QGIS calls classFactory() to obtain the plugin instance.
 
 import glob, os, sys as _sys
 
-# realpath resolves symlinks (the plugin dir is a symlink to the project's
-# plugin/ folder, so abspath would point to the QGIS plugins directory instead
-# of the project root).
+# core/ is now bundled inside this plugin folder, so no project-root path
+# injection is needed.  We only expose the project venv's site-packages so
+# that scipy/rasterio installed there are visible to QGIS's Python during
+# development (symlink install).  This has no effect in a ZIP install where
+# dependencies are expected to come from QGIS's own Python or be auto-installed
+# by dependencies.py.
 _plugin_dir = os.path.dirname(os.path.realpath(__file__))
 _project_root = os.path.dirname(_plugin_dir)
-if _project_root not in _sys.path:
-    _sys.path.insert(0, _project_root)
-
-# Expose packages installed in the project venv to QGIS's Python.
-# Works as long as the venv Python ABI matches QGIS's Python (usually both
-# are the system python3.x, so site-packages are binary-compatible).
 _venv_site_pkgs = glob.glob(
     os.path.join(_project_root, ".venv", "lib", "python3.*", "site-packages")
 )
 for _sp in _venv_site_pkgs:
     if _sp not in _sys.path:
-        _sys.path.insert(1, _sp)
+        _sys.path.insert(0, _sp)
 
 
 # noinspection PyPep8Naming
