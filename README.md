@@ -222,6 +222,9 @@ pytest tests/ -v
   `RasterUtils.vector_to_raster()` (requires `fiona`), runs the propagation, and
   returns a GeoTIFF output.  Parameters would include the burn attribute, fill value,
   and `all_touched` option.
+- **Multi-band raster input** — propagate each band independently through the same
+  matrix (e.g. one band per species, pollutant, or time snapshot) and return a
+  multi-band output with identical spatial metadata.
 - Batch / multi-scenario mode (loop over a folder of rasters or matrix time-slices).
 - Time-series output (store all *n* intermediate steps as a multi-band raster).
 
