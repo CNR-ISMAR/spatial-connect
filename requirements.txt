@@ -1,0 +1,14 @@
+# ── Core dependencies ────────────────────────────────────────────────────────
+numpy>=1.23
+scipy>=1.9
+rasterio>=1.3
+
+# ── Optional: only required for RasterUtils.vector_to_raster() ──────────────
+fiona>=1.9
+
+# ── Dev / test dependencies ──────────────────────────────────────────────────
+pytest>=7.0
+pytest-cov>=4.0
+
+# ── Optional: QGIS is provided by the QGIS environment; not via pip ──────────
+# PyQGIS is part of the QGIS installation and should not be listed here.

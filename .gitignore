@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.installed.cfg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# QGIS
+*.qgs~
+*.qgz~
+*.gpkg-journal
+
+# Data / outputs (keep examples/ structure but not large files)
+*.tif
+*.tiff
+*.nc
+*.npz
+*.npy
+*.mtx
+*.csv
+output/
+!examples/**
+
+# Logs
+*.log
+
+
+examples/
