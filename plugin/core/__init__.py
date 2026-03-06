@@ -1,10 +1,10 @@
 """
-Spatial Matrix Propagator – core package.
+Spatial Matrix Propagator - core package.
 
 Provides the computation engine for applying a connectivity matrix
 C to a spatial raster x for n iterations:
 
-    x' = C^n · x
+    x' = C^n * x
 
 Supports sparse matrices (scipy), multiple scenarios and both
 discrete (matrix power) and continuous (matrix exponential) modes.

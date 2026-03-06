@@ -17,7 +17,7 @@ import importlib
 import subprocess
 import sys
 
-# package-name → importable module name (they differ for scikit-image etc.)
+# package-name -> importable module name (they differ for scikit-image etc.)
 REQUIRED: dict[str, str] = {
     "scipy": "scipy",
     "rasterio": "rasterio",
@@ -69,7 +69,7 @@ def ensure_dependencies(iface=None) -> bool:
     if not missing:
         return True
 
-    _log(f"SpatialConnect: missing packages: {missing}. Trying to install…", iface)
+    _log(f"SpatialConnect: missing packages: {missing}. Trying to install...", iface)
 
     ok, stderr = _pip_install(missing)
     if not ok:
@@ -105,7 +105,7 @@ def ensure_dependencies(iface=None) -> bool:
     return True
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# -- helpers 
 
 def _is_importable(module: str) -> bool:
     return importlib.util.find_spec(module) is not None

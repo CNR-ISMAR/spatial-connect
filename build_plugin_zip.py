@@ -2,7 +2,7 @@
 """
 Build a self-contained SpatialConnect.zip for QGIS.
 
-Install via:  Plugins → Manage and Install Plugins → Install from ZIP
+Install via:  Plugins -> Manage and Install Plugins -> Install from ZIP
 
 Usage:
     python build_plugin_zip.py            # creates dist/SpatialConnect-<version>.zip
@@ -21,7 +21,7 @@ PLUGIN_DIR = ROOT / "plugin"
 METADATA = PLUGIN_DIR / "metadata.txt"
 OUT_DIR = ROOT / "dist"
 
-# ── version ──────────────────────────────────────────────────────────────────
+# -- version ------------------------------------------------------------------
 if len(sys.argv) > 1:
     version = sys.argv[1]
 else:
@@ -34,7 +34,7 @@ else:
 zip_name = f"SpatialConnect-{version}.zip"
 print(f"Building SpatialConnect v{version} ...")
 
-# ── assemble in a temp dir ────────────────────────────────────────────────────
+# -- assemble in a temp dir ----------------------------------------------------
 with tempfile.TemporaryDirectory() as tmp:
     staging = Path(tmp) / "SpatialConnect"
     shutil.copytree(
@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory() as tmp:
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
     )
 
-    # ── write zip ────────────────────────────────────────────────────────────
+    # -- write zip ------------------------------------------------------------
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_zip = OUT_DIR / zip_name
 
@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory() as tmp:
             arcname = Path("SpatialConnect") / file.relative_to(staging)
             zf.write(file, arcname)
 
-print(f"\nDone → {out_zip}")
+print(f"\nDone -> {out_zip}")
 print()
 print("Install in QGIS:")
-print("  Plugins → Manage and Install Plugins → Install from ZIP")
+print("  Plugins -> Manage and Install Plugins -> Install from ZIP")

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build a self-contained SpatialConnect.zip for QGIS
-# Install via:  Plugins → Manage and Install Plugins → Install from ZIP
+# Install via:  Plugins -> Manage and Install Plugins -> Install from ZIP
 #
 # Usage:
 #   ./build_plugin_zip.sh            # creates dist/SpatialConnect-<version>.zip
@@ -16,7 +16,7 @@ ZIP_NAME="SpatialConnect-${VERSION}.zip"
 
 echo "Building SpatialConnect v${VERSION} ..."
 
-# core/ is already inside plugin/ — just copy the whole folder
+# core/ is already inside plugin/ - just copy the whole folder
 cp -r "$SCRIPT_DIR/plugin" "$TMP_DIR/SpatialConnect"
 
 # Clean up pycache
@@ -28,7 +28,7 @@ mkdir -p "$OUT_DIR"
 rm -rf "$TMP_DIR"
 
 echo ""
-echo "Done → $OUT_DIR/$ZIP_NAME"
+echo "Done -> $OUT_DIR/$ZIP_NAME"
 echo ""
 echo "Install in QGIS:"
-echo "  Plugins → Manage and Install Plugins → Install from ZIP"
+echo "  Plugins -> Manage and Install Plugins -> Install from ZIP"

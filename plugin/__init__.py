@@ -1,5 +1,5 @@
 """
-QGIS Plugin entry point – SpatialConnect.
+QGIS Plugin entry point - SpatialConnect.
 
 QGIS calls classFactory() to obtain the plugin instance.
 """

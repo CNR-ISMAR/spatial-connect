@@ -1,5 +1,5 @@
 """
-SpatialConnectPlugin – main QGIS plugin class.
+SpatialConnectPlugin - main QGIS plugin class.
 
 Registers a Processing provider so the algorithm is available in the
 Processing Toolbox and can be used in models / batch processes.

@@ -1,9 +1,9 @@
 """
-Integration tests – full pipeline from data loading to raster output.
+Integration tests - full pipeline from data loading to raster output.
 
 These tests exercise the complete pipeline:
-    load raster  →  load connectivity matrix (.npz / .mtx)
-                 →  propagate  →  write GeoTIFF  →  read back
+    load raster  ->  load connectivity matrix (.npz / .mtx)
+                 ->  propagate  ->  write GeoTIFF  ->  read back
 
 They use the synthetic fixtures defined in conftest.py and run entirely
 in tmp_path, requiring no pre-existing data files.
@@ -18,9 +18,9 @@ from scipy.sparse import eye as speye
 from core import SpatialPropagator, MatrixLoader, RasterUtils
 
 
-# ════════════════════════════════════════════════════════════════════
+# ------------------------------------------------------------
 # 1.  Raster I/O round-trip
-# ════════════════════════════════════════════════════════════════════
+# ------------------------------------------------------------
 
 class TestRasterRoundTrip:
 
@@ -41,14 +41,14 @@ class TestRasterRoundTrip:
         np.testing.assert_array_equal(a2[-1, :], -9999.0)
 
 
-# ════════════════════════════════════════════════════════════════════
+# ------------------------------------------------------------
 # 2.  Propagation physics
-# ════════════════════════════════════════════════════════════════════
+# ------------------------------------------------------------
 
 class TestPropagationPhysics:
 
     def test_identity_n_iterations_all_same(self, raster_array, rows, cols):
-        """Applying the identity matrix any number of times → identical output."""
+        """Applying the identity matrix any number of times -> identical output."""
         I = speye(rows * cols, format="csr")
         p = SpatialPropagator(mode="discrete", clip_negative=False)
         for n in (1, 5, 10):
@@ -75,7 +75,7 @@ class TestPropagationPhysics:
     def test_run_scenarios_both_formats(self, raster_array, matrix_npz,
                                         matrix_mtx):
         """Loading the same matrix from .npz and .mtx and running scenarios gives
-        identical outputs (identity ≡ identity regardless of format)."""
+        identical outputs (identity == identity regardless of format)."""
         loader = MatrixLoader()
         scenarios = {
             "from_npz": loader.load(matrix_npz),
@@ -90,9 +90,9 @@ class TestPropagationPhysics:
         )
 
 
-# ════════════════════════════════════════════════════════════════════
-# 3.  Full pipeline: raster in → propagate → GeoTIFF out → read back
-# ════════════════════════════════════════════════════════════════════
+# ------------------------------------------------------------
+# 3.  Full pipeline: raster in -> propagate -> GeoTIFF out -> read back
+# ------------------------------------------------------------
 
 class TestFullPipeline:
 

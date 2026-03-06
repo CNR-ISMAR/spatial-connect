@@ -1,11 +1,11 @@
 """
-pytest conftest – synthetic data fixtures.
+pytest conftest - synthetic data fixtures.
 
 Minimal synthetic dataset:
-- raster_single    – 20×20 float64 GeoTIFF, single band, Gaussian blob
-- raster_nodata    – 20×20, nodata=-9999 in the border ring
-- matrix_npz       – sparse NxN identity matrix saved as .npz
-- matrix_mtx       – sparse NxN identity matrix saved as .mtx
+- raster_single    - 20x20 float64 GeoTIFF, single band, Gaussian blob
+- raster_nodata    - 20x20, nodata=-9999 in the border ring
+- matrix_npz       - sparse NxN identity matrix saved as .npz
+- matrix_mtx       - sparse NxN identity matrix saved as .mtx
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import pytest
 from scipy.sparse import eye as speye, save_npz
 
 
-# ── helpers ─────────────────────────────────────────────────────────────────
+# -- helpers 
 
 def _make_rasterio_meta(rows, cols, nodata=None):
     try:
@@ -61,7 +61,7 @@ def _simple_sparse(n):
     return speye(n, format="csr", dtype=np.float64)
 
 
-# ── dimension fixtures ────────────────────────────────────────────────────────
+# -- dimension fixtures 
 
 @pytest.fixture(scope="session")
 def rows():
@@ -78,7 +78,7 @@ def N(rows, cols):
     return rows * cols
 
 
-# ── raster array fixtures ────────────────────────────────────────────────────
+# -- raster array fixtures 
 
 @pytest.fixture(scope="session")
 def raster_array(rows, cols):
@@ -94,7 +94,7 @@ def raster_nodata_array(rows, cols):
     return arr
 
 
-# ── raster file fixtures ─────────────────────────────────────────────────────
+# -- raster file fixtures 
 
 @pytest.fixture
 def raster_tif(tmp_path, raster_array):
@@ -106,7 +106,7 @@ def raster_nodata_tif(tmp_path, raster_nodata_array):
     return _write_raster(tmp_path / "raster_nd.tif", raster_nodata_array, nodata=-9999.0)
 
 
-# ── matrix file fixtures ─────────────────────────────────────────────────────
+# -- matrix file fixtures 
 
 @pytest.fixture
 def matrix_npz(tmp_path, N):

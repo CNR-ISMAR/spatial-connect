@@ -3,15 +3,15 @@ Core propagation engine.
 
 Two propagation conventions are supported:
 
-  Transition convention (transition=True)  – default, matches Sofia's model:
-    x(t+dt)  = x(t) · T^n       (discrete)
-    x(t+dt)  = x(t) · expm(n·T) (continuous)
+  Transition convention (transition=True)  - default, matches Sofia's model:
+    x(t+dt)  = x(t) * T^n       (discrete)
+    x(t+dt)  = x(t) * expm(n*T) (continuous)
   where T[i,j] = probability of moving FROM cell i TO cell j.
   x is a row vector; repeated left-multiplication advances the distribution.
 
-  Diffusion convention (transpose_connectivity=False)  – legacy:
-    x'  = C^n · x              (discrete)
-    x'  = expm(n·C) · x        (continuous)
+  Diffusion convention (transpose_connectivity=False)  - legacy:
+    x'  = C^n * x              (discrete)
+    x'  = expm(n*C) * x        (continuous)
   where C[i,j] = influence of source cell j on destination cell i.
   Matches the convolution kernel output of MatrixLoader.make_kernel().
 
@@ -24,7 +24,7 @@ Masked-domain support
 When operating on a raster with a land/sea mask (like the North Adriatic grid),
 cell IDs do NOT correspond to simple row-major pixel positions.  Pass the output
 of RasterUtils.compute_cell_ids() as `cell_ids` to run() and the propagator
-will correctly map valid pixels ↔ matrix rows.
+will correctly map valid pixels <-> matrix rows.
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ class PropagationResult:
     # --- convenience --------------------------------------------------------
 
     def to_2d(self) -> np.ndarray:
-        """Return output as 2-D array (rows × cols).  Raises if multi-band."""
+        """Return output as 2-D array (rows x cols).  Raises if multi-band."""
         if self.output.ndim != 2:
             raise ValueError(
                 "to_2d() is only valid for single-band results; "
@@ -67,7 +67,7 @@ class PropagationResult:
         return self.output
 
     def to_3d(self) -> np.ndarray:
-        """Return output as 3-D array (rows × cols × bands)."""
+        """Return output as 3-D array (rows x cols x bands)."""
         if self.output.ndim == 2:
             return self.output[:, :, np.newaxis]
         return self.output
@@ -84,13 +84,13 @@ class SpatialPropagator:
     Parameters
     ----------
     mode : str
-        ``"discrete"``   – repeated matrix multiplication (default)
-        ``"continuous"`` – matrix exponential  expm(n·T)
+        ``"discrete"``   - repeated matrix multiplication (default)
+        ``"continuous"`` - matrix exponential  expm(n*T)
     transpose_connectivity : bool
         When ``True`` (default), the matrix is transposed internally so that
-        the formula ``x(t+dt) = x(t) · T`` (Sofia's convention) is applied.
+        the formula ``x(t+dt) = x(t) * T`` (Sofia's convention) is applied.
         Set to ``False`` for legacy diffusion kernels where the formula is
-        ``x' = C · x``.
+        ``x' = C * x``.
     clip_negative : bool
         Clip negative values in the output to 0.  Default ``True``.
     dtype : numpy dtype
@@ -134,7 +134,7 @@ class SpatialPropagator:
         raster : ndarray, shape (rows, cols) or (rows, cols, bands)
             Input spatial data.
         connectivity : ndarray or sparse matrix, shape (N, N)
-            Connectivity / transition matrix.  N = rows × cols when
+            Connectivity / transition matrix.  N = rows x cols when
             *cell_ids* is None; otherwise N = number of valid (non-masked)
             cells as defined by *cell_ids*.
         iterations : int
@@ -150,15 +150,15 @@ class SpatialPropagator:
             Valid cells have IDs 0..N-1; invalid cells have -1.
             Use ``RasterUtils.compute_cell_ids()`` to build this from a
             land/sea mask GeoTIFF (e.g. the North Adriatic grid).
-            When ``None`` (default) the whole raster (rows × cols) is used
-            and N = rows × cols.
+            When ``None`` (default) the whole raster (rows x cols) is used
+            and N = rows x cols.
 
         Returns
         -------
         PropagationResult
         """
         if iterations < 1:
-            raise ValueError(f"iterations must be ≥ 1, got {iterations}")
+            raise ValueError(f"iterations must be >= 1, got {iterations}")
 
         rows, cols, bands = self._parse_shape(raster)
 
@@ -174,7 +174,7 @@ class SpatialPropagator:
         # prepare connectivity matrix (validate, cast, optionally transpose + normalise)
         C = self._prepare_matrix(connectivity, N)
 
-        # flatten raster to (N, bands) — uses cell_ids when provided
+        # flatten raster to (N, bands) - uses cell_ids when provided
         x = self._flatten(raster, rows, cols, bands, nodata_mask, cell_ids)
 
         # propagate
@@ -184,10 +184,10 @@ class SpatialPropagator:
         )
         x_out = self._propagate(C, x, iterations)
 
-        # reshape back to (rows, cols, bands) — uses cell_ids when provided
+        # reshape back to (rows, cols, bands) - uses cell_ids when provided
         output = self._reshape(x_out, rows, cols, bands, nodata_mask, nodata_value, cell_ids)
 
-        # output is always (rows, cols, bands) at this point → clip negatives
+        # output is always (rows, cols, bands) at this point -> clip negatives
         if self.clip_negative:
             mask_expanded = nodata_mask[..., np.newaxis]  # (rows, cols, 1)
             output = np.where(mask_expanded, output, np.maximum(output, 0.0))
@@ -277,11 +277,11 @@ class SpatialPropagator:
                 f"domain size N={N} (expected ({N},{N}))"
             )
 
-        # Transpose: x @ T  ≡  T.T @ x_col  →  store T.T as the effective matrix
+        # Transpose: x @ T  ==  T.T @ x_col  ->  store T.T as the effective matrix
         if self.transpose_connectivity:
             C = C.T
 
-        # Row-normalise → Markov chain (each row sums to 1)
+        # Row-normalise -> Markov chain (each row sums to 1)
         if self.normalise:
             C = self._row_normalise(C)
 
@@ -306,7 +306,7 @@ class SpatialPropagator:
 
     @staticmethod
     def _flatten(raster, rows, cols, bands, nodata_mask, cell_ids=None):
-        """Flatten (rows, cols[, bands]) → (N, bands) masking nodata as 0.
+        """Flatten (rows, cols[, bands]) -> (N, bands) masking nodata as 0.
 
         When *cell_ids* is provided, only the N valid cells are extracted
         and ordered by their cell ID (matching the matrix row order).
@@ -336,7 +336,7 @@ class SpatialPropagator:
     @staticmethod
     def _discrete(C, x: np.ndarray, n: int) -> np.ndarray:
         """
-        Compute C_eff^n · x iteratively, where C_eff has already been
+        Compute C_eff^n * x iteratively, where C_eff has already been
         transposed in _prepare_matrix if transpose_connectivity=True.
         For sparse C, avoids forming the full power explicitly.
         Dense matrices use numpy matrix power for small N.
@@ -360,7 +360,7 @@ class SpatialPropagator:
     @staticmethod
     def _continuous(C, x: np.ndarray, n: int) -> np.ndarray:
         """
-        Compute expm(n·C) · x using Krylov subspace method (sparse)
+        Compute expm(n*C) * x using Krylov subspace method (sparse)
         or scipy.linalg.expm (dense).
         """
         if issparse(C):

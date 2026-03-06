@@ -21,7 +21,7 @@ def identity_matrix():
 
 @pytest.fixture
 def uniform_matrix():
-    """Uniform 4×4 raster, each cell connected equally to all others."""
+    """Uniform 4x4 raster, each cell connected equally to all others."""
     N = 16
     C = np.ones((N, N), dtype=float) / N
     return csr_matrix(C)
@@ -56,7 +56,7 @@ class TestSpatialPropagatorDiscrete:
         assert result.iterations == 1
 
     def test_n_iterations_consistent(self, simple_raster):
-        """C^2 · x == C · (C · x)"""
+        """C^2 * x == C * (C * x)"""
         N = 16
         C = csr_matrix(np.random.rand(N, N) * 0.1)
         p = SpatialPropagator(mode="discrete", clip_negative=False)
@@ -88,7 +88,7 @@ class TestSpatialPropagatorDiscrete:
             p.run(simple_raster, identity_matrix, iterations=0)
 
     def test_matrix_size_mismatch(self, simple_raster):
-        C = speye(10, format="csr")  # wrong size for 4×4 raster
+        C = speye(10, format="csr")  # wrong size for 4x4 raster
         p = SpatialPropagator()
         with pytest.raises(ValueError, match="does not match"):
             p.run(simple_raster, C, iterations=1)
@@ -99,9 +99,9 @@ class TestSpatialPropagatorContinuous:
     def test_continuous_close_to_discrete_for_small_n(self, simple_raster):
         """
         Continuous mode with C = eps*I:
-          expm(n * eps * I) · x  =  e^(n*eps) * x
+          expm(n * eps * I) * x  =  e^(n*eps) * x
         Discrete mode with C = eps*I:
-          (eps*I)^n · x  =  eps^n * x
+          (eps*I)^n * x  =  eps^n * x
 
         For n=1 both should equal a scalar multiple of x; verify
         the continuous result is close to e^eps * x.
@@ -140,14 +140,14 @@ class TestRunScenarios:
 
 
 # ---------------------------------------------------------------------------
-# Transpose connectivity (Sofia's x·T convention)
+# Transpose connectivity (Sofia's x*T convention)
 # ---------------------------------------------------------------------------
 
 class TestTransposeConnectivity:
 
     def test_transpose_true_applies_xT_formula(self):
-        """With an asymmetric T, x·T ≠ T·x; verify the correct formula is used."""
-        # T: cell 0 → cell 1 with weight 1 (all mass moves right)
+        """With an asymmetric T, x*T != T*x; verify the correct formula is used."""
+        # T: cell 0 -> cell 1 with weight 1 (all mass moves right)
         T = csr_matrix(np.array([[0.0, 1.0], [0.0, 1.0]], dtype=float))
         # rows=1, cols=2; x=[10, 0]
         raster = np.array([[10.0, 0.0]])
@@ -158,7 +158,7 @@ class TestTransposeConnectivity:
         np.testing.assert_allclose(result.output, [[0.0, 10.0]], rtol=1e-10)
 
     def test_transpose_false_applies_Cx_formula(self):
-        """With transpose=False the legacy C·x formula is used."""
+        """With transpose=False the legacy C*x formula is used."""
         # C: cell 0 receives from cell 1 (pull)
         C = csr_matrix(np.array([[0.0, 1.0], [0.0, 1.0]], dtype=float))
         raster = np.array([[10.0, 0.0]])
@@ -187,8 +187,8 @@ class TestCellIds:
 
     def test_cell_ids_subsets_full_raster(self):
         """
-        A 3×3 raster with a sea mask (only 5 of 9 cells valid).
-        The transition matrix is 5×5.  Verify that after propagation
+        A 3x3 raster with a sea mask (only 5 of 9 cells valid).
+        The transition matrix is 5x5.  Verify that after propagation
         the land cells are restored to nodata and sea cells are updated.
         """
         # mask: 1=sea, 0=land
@@ -203,7 +203,7 @@ class TestCellIds:
         N = int((cell_ids >= 0).sum())   # should be 6
 
         raster = np.where(mask == 1, 1.0, -9999.0)  # sea=1, land=nodata
-        # Identity transition matrix (5x5) → output = input for sea cells
+        # Identity transition matrix (5x5) -> output = input for sea cells
         T = speye(N, format="csr")
         p = SpatialPropagator(mode="discrete", transpose_connectivity=True,
                               clip_negative=False)
@@ -212,7 +212,7 @@ class TestCellIds:
         # Land cells must remain nodata
         assert result.output[0, 1] == pytest.approx(-9999.0)
         assert result.output[1, 2] == pytest.approx(-9999.0)
-        # Sea cells must be 1.0 (identity matrix → no change)
+        # Sea cells must be 1.0 (identity matrix -> no change)
         assert result.output[0, 0] == pytest.approx(1.0)
         assert result.output[1, 0] == pytest.approx(1.0)
 

@@ -1,11 +1,11 @@
 """
-MatrixLoader – load connectivity / transition matrices.
+MatrixLoader - load connectivity / transition matrices.
 
 Supported formats
 -----------------
-* MatrixMarket  (.mtx) – the format produced by the Lagrangian particle model
+* MatrixMarket  (.mtx) - the format produced by the Lagrangian particle model
   (e.g. ``sparse_transition_matrix.mtx``)
-* NumPy sparse  (.npz) – scipy.sparse.save_npz output
+* NumPy sparse  (.npz) - scipy.sparse.save_npz output
 """
 
 from __future__ import annotations
@@ -47,9 +47,9 @@ class MatrixLoader:
 
         Accepts
         -------
-        * file path (str or Path) – ``.mtx`` or ``.npz``
-        * ndarray  – wrapped in a CSR matrix
-        * sparse matrix – returned as-is (cast to dtype)
+        * file path (str or Path) - ``.mtx`` or ``.npz``
+        * ndarray  - wrapped in a CSR matrix
+        * sparse matrix - returned as-is (cast to dtype)
         """
         if isinstance(source, (str, Path)):
             return self._load_file(Path(source))

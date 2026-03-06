@@ -2,10 +2,10 @@
 QGIS Processing provider for SpatialConnect.
 
 Exposes the propagation as a standard Processing algorithm so it can be:
-  • used in the Processing Toolbox
-  • chained in Graphical Models
-  • run in batch mode
-  • called from PyQGIS scripts
+  - used in the Processing Toolbox
+  - chained in Graphical Models
+  - run in batch mode
+  - called from PyQGIS scripts
 """
 
 from __future__ import annotations
@@ -55,23 +55,23 @@ class SpatialConnectProvider(QgsProcessingProvider):
 
 class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     """
-    Apply x(t+n·dt) = x(t) · T^n to a raster using a Lagrangian transition matrix T.
+    Apply x(t+n*dt) = x(t) * T^n to a raster using a Lagrangian transition matrix T.
 
     Parameters visible in the Processing Toolbox
     --------------------------------------------
-    INPUT      – raster layer (initial distribution, GeoTIFF)
-    MATRIX     – transition matrix file (.mtx / .npz)
-    ITERATIONS – integer n (each step = 1 dt of the particle model)
-    MODE       – discrete | continuous
-    CLIP_NEG   – bool
-    TRANSPOSE  – bool  (True = x·T, T[i,j]=flow i→j; False = T·x, T[i,j]=contribution j→i)
-    NORMALISE  – bool
-    NODATA     – float (optional, auto-detected from raster)
-    OUTPUT     – destination raster
+    INPUT      - raster layer (initial distribution, GeoTIFF)
+    MATRIX     - transition matrix file (.mtx / .npz)
+    ITERATIONS - integer n (each step = 1 dt of the particle model)
+    MODE       - discrete | continuous
+    CLIP_NEG   - bool
+    TRANSPOSE  - bool  (True = x*T, T[i,j]=flow i->j; False = T*x, T[i,j]=contribution j->i)
+    NORMALISE  - bool
+    NODATA     - float (optional, auto-detected from raster)
+    OUTPUT     - destination raster
 
     Hidden / not exposed in UI (kept for programmatic use)
     -------------------------------------------------------
-    MASK       – explicit land/sea mask raster (auto-inferred from NaN cells when absent)
+    MASK       - explicit land/sea mask raster (auto-inferred from NaN cells when absent)
     """
 
     INPUT      = "INPUT"
@@ -88,7 +88,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterRasterLayer(
             self.INPUT,
-            "Input raster (GeoTIFF — initial spatial distribution)"
+            "Input raster (GeoTIFF - initial spatial distribution)"
         ))
         self.addParameter(QgsProcessingParameterFile(
             self.MATRIX,
@@ -104,7 +104,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         ))
         self.addParameter(QgsProcessingParameterEnum(
             self.MODE, "Propagation mode",
-            options=["discrete  x·Tⁿ", "continuous  x·expm(n·T)"],
+            options=["discrete  x*T^n", "continuous  x*expm(n*T)"],
             defaultValue=0,
         ))
         self.addParameter(QgsProcessingParameterBoolean(
@@ -113,18 +113,18 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         ))
         self.addParameter(QgsProcessingParameterBoolean(
             self.TRANSPOSE,
-            "Matrix convention: T[i,j] = flow from i → j  (x·T, Lagrangian / OpenDrift)"
-            " — uncheck if T[i,j] = contribution from j to i  (T·x, some hydrological models)",
+            "Matrix convention: T[i,j] = flow from i -> j  (x*T, Lagrangian / OpenDrift)"
+            " - uncheck if T[i,j] = contribution from j to i  (T*x, some hydrological models)",
             defaultValue=True,
         ))
         self.addParameter(QgsProcessingParameterBoolean(
             self.NORMALISE,
-            "Row-normalise matrix (conserves total mass — Markov chain)",
+            "Row-normalise matrix (conserves total mass - Markov chain)",
             defaultValue=False,
         ))
         self.addParameter(QgsProcessingParameterNumber(
             self.NODATA,
-            "NoData value (leave blank → auto-detected from raster file)",
+            "NoData value (leave blank -> auto-detected from raster file)",
             type=QgsProcessingParameterNumber.Double,
             optional=True,
         ))
@@ -135,7 +135,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     def processAlgorithm(self, parameters, context, feedback):
         from .core import SpatialPropagator, MatrixLoader, RasterUtils
 
-        # ── inputs ──────────────────────────────────────────────────
+        # -- inputs 
         raster_layer = self.parameterAsRasterLayer(parameters, self.INPUT, context)
         matrix_path  = self.parameterAsFile(parameters, self.MATRIX, context)
         iterations   = self.parameterAsInt(parameters, self.ITERATIONS, context)
@@ -168,7 +168,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 
         # Build cell-ID mapping
         # Priority: explicit MASK parameter (hidden, for programmatic use)
-        #           → auto-detect from NaN/nodata cells in the raster
+        #           -> auto-detect from NaN/nodata cells in the raster
         mask_layer = None
         if parameters.get(self.MASK) is not None:
             mask_src = parameters[self.MASK]
@@ -181,7 +181,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
             cell_ids = None
             # Replicate the original xarray .dropna() approach: treat NaN and
             # nodata cells as invalid so that N = number of valid cells, not
-            # rows × cols.  This allows matrices built on a masked sub-domain
+            # rows x cols.  This allows matrices built on a masked sub-domain
             # (e.g. ocean-only) to be used without an explicit mask file.
             arr2d = array if array.ndim == 2 else array[:, :, 0]
             valid = ~np.isnan(arr2d)
@@ -195,11 +195,11 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
                 cell_ids = np.where(flat_valid, cumsum_ids, -1).reshape(arr2d.shape)
                 feedback.pushInfo(
                     f"Auto cell-ID mapping: {n_valid} valid cells "
-                    f"(nodata excluded) → matches matrix ({n_matrix}×{n_matrix})"
+                    f"(nodata excluded) -> matches matrix ({n_matrix}x{n_matrix})"
                 )
             elif n_valid != n_matrix and arr2d.size != n_matrix:
                 feedback.reportError(
-                    f"Matrix size ({n_matrix}×{n_matrix}) matches neither the full raster "
+                    f"Matrix size ({n_matrix}x{n_matrix}) matches neither the full raster "
                     f"({arr2d.size} cells) nor the non-nodata cells ({n_valid}). "
                     f"Provide an explicit Mask raster whose valid cells number {n_matrix}.",
                     fatalError=True,
@@ -229,7 +229,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgress(100)
         return {self.OUTPUT: out_path}
 
-    # ── metadata ────────────────────────────────────────────────────────────
+    # -- metadata 
 
     def name(self):        return "propagate_raster"
     def displayName(self): return "Propagate Raster"
@@ -237,16 +237,16 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):     return ""
     def shortHelpString(self): return (
         "Apply a Lagrangian transition matrix T to a GeoTIFF raster x for n time steps:\n\n"
-        "  discrete:    x(t+n·dt) = x(t) · Tⁿ\n"
-        "  continuous:  x(t+n·dt) = x(t) · expm(n·T)\n\n"
+        "  discrete:    x(t+n*dt) = x(t) * T^n\n"
+        "  continuous:  x(t+n*dt) = x(t) * expm(n*T)\n\n"
         "Supported matrix formats: MatrixMarket (.mtx) or NumPy sparse (.npz).\n\n"
         "Matrix convention (TRANSPOSE):\n"
-        "  ✔ checked (default) — T[i,j] = fraction flowing from cell i to cell j\n"
-        "    (x·T row-vector convention — Lagrangian models, OpenDrift)\n"
-        "  ✘ unchecked          — T[i,j] = contribution from cell j to cell i\n"
-        "    (T·x column-vector convention — some hydrological / graph models)\n\n"
+        "  [x] checked (default) - T[i,j] = fraction flowing from cell i to cell j\n"
+        "    (x*T row-vector convention - Lagrangian models, OpenDrift)\n"
+        "  [ ] unchecked          - T[i,j] = contribution from cell j to cell i\n"
+        "    (T*x column-vector convention - some hydrological / graph models)\n\n"
         "Non-ocean cells (NaN/NoData) are automatically excluded so that the\n"
-        "matrix size N can be smaller than rows × cols of the raster."
+        "matrix size N can be smaller than rows x cols of the raster."
     )
 
     def createInstance(self):
@@ -257,4 +257,4 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 # Helpers
 # ============================================================================
 
-# (no path helpers needed — core/ is bundled inside this package)
+# (no path helpers needed - core/ is bundled inside this package)

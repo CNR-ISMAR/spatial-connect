@@ -1,12 +1,12 @@
 """
-RasterUtils – I/O helpers for rasters using rasterio.
+RasterUtils - I/O helpers for rasters using rasterio.
 
 Provides:
-* read_raster()       – load a GeoTIFF → numpy array + metadata dict
-* write_raster()      – save numpy array → GeoTIFF (preserving CRS / transform)
-* compute_cell_ids()  – build the cell-ID mapping used by Lagrangian connectivity
+* read_raster()       - load a GeoTIFF -> numpy array + metadata dict
+* write_raster()      - save numpy array -> GeoTIFF (preserving CRS / transform)
+* compute_cell_ids()  - build the cell-ID mapping used by Lagrangian connectivity
                         matrices (valid cells only, row-major cumsum, 0-indexed)
-* vector_to_raster()  – burn vector features into a reference raster grid (requires fiona)
+* vector_to_raster()  - burn vector features into a reference raster grid (requires fiona)
 """
 
 from __future__ import annotations
@@ -143,9 +143,9 @@ class RasterUtils:
         ----------
         path : str | Path
         array : ndarray, shape (rows, cols) or (rows, cols, bands)
-        meta : RasterMeta  – geospatial metadata (CRS, transform …)
-        nodata_value : float, optional  – overrides meta.nodata
-        compress : str  – compression algorithm
+        meta : RasterMeta  - geospatial metadata (CRS, transform ...)
+        nodata_value : float, optional  - overrides meta.nodata
+        compress : str  - compression algorithm
         """
         try:
             import rasterio
@@ -194,7 +194,7 @@ class RasterUtils:
         Parameters
         ----------
         vector_path : str | Path
-            Path to a vector file (Shapefile, GeoJSON, GPKG …).
+            Path to a vector file (Shapefile, GeoJSON, GPKG ...).
         reference_raster_path : str | Path
             GeoTIFF used to define the output CRS, transform, and grid shape.
         attribute : str, optional
@@ -282,7 +282,7 @@ class RasterUtils:
         used by Lagrangian particle-model connectivity matrices.
 
         Valid cells (``mask == sea_value``) receive integer IDs
-        **0, 1, 2, …, N-1** in row-major (top-to-bottom, left-to-right)
+        **0, 1, 2, ..., N-1** in row-major (top-to-bottom, left-to-right)
         order.  Invalid cells (land / nodata) receive **-1**.
 
         This replicates Sofia's xarray construction::
@@ -309,7 +309,7 @@ class RasterUtils:
         Returns
         -------
         cell_ids : ndarray of int64, shape (rows, cols)
-            ``-1`` for invalid cells, ``0 … N-1`` for valid cells.
+            ``-1`` for invalid cells, ``0 ... N-1`` for valid cells.
 
         Example
         -------
