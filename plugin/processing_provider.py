@@ -113,8 +113,8 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         ))
         self.addParameter(QgsProcessingParameterBoolean(
             self.TRANSPOSE,
-            "Matrix convention: T[i,j] = flow from i -> j  (x*T, Lagrangian / OpenDrift)"
-            " - uncheck if T[i,j] = contribution from j to i  (T*x, some hydrological models)",
+            "Matrix convention: T[i,j] = flow from i -> j  (x*T row-vector)"
+            " - uncheck if T[i,j] = contribution from j to i  (T*x column-vector)",
             defaultValue=True,
         ))
         self.addParameter(QgsProcessingParameterBoolean(
@@ -250,9 +250,9 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         "Supported matrix formats: MatrixMarket (.mtx) or NumPy sparse (.npz).\n\n"
         "Matrix convention (TRANSPOSE):\n"
         "  [x] checked (default) - T[i,j] = fraction flowing from cell i to cell j\n"
-        "    (x*T row-vector convention - Lagrangian models, OpenDrift)\n"
+        "    (x*T row-vector convention)\n"
         "  [ ] unchecked          - T[i,j] = contribution from cell j to cell i\n"
-        "    (T*x column-vector convention - some hydrological / graph models)\n\n"
+        "    (T*x column-vector convention)\n\n"
         "Non-ocean cells (NaN/NoData) are automatically excluded so that the\n"
         "matrix size N can be smaller than rows x cols of the raster."
     )
