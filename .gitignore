@@ -48,6 +48,9 @@ desktop.ini
 *.mtx
 *.csv
 output/
+!examples/*.tif
+!examples/*.tiff
+!examples/*.mtx
 
 
 # Logs
