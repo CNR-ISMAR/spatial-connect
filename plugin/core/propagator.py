@@ -277,13 +277,14 @@ class SpatialPropagator:
                 f"domain size N={N} (expected ({N},{N}))"
             )
 
+        # Row-normalise on the ORIGINAL matrix (before any transpose) so that
+        # rows always correspond to source cells regardless of convention.
+        if self.normalise:
+            C = self._row_normalise(C)
+
         # Transpose: x @ T  ==  T.T @ x_col  ->  store T.T as the effective matrix
         if self.transpose_connectivity:
             C = C.T
-
-        # Row-normalise -> Markov chain (each row sums to 1)
-        if self.normalise:
-            C = self._row_normalise(C)
 
         return C
 
