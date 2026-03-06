@@ -209,9 +209,17 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(
             f"Propagating: mode={mode}, n={iterations}, transpose={transpose}"
         )
+
+        # Pre-process matrix: normalise source rows first, then transpose into
+        # the column-vector convention expected by SpatialPropagator (C @ x).
+        if normalise:
+            mat = SpatialPropagator._row_normalise(mat)
+        if transpose:
+            mat = mat.T
+
         propagator = SpatialPropagator(
-            mode=mode, transpose_connectivity=transpose,
-            clip_negative=clip_neg, normalise=normalise,
+            mode=mode,
+            clip_negative=clip_neg,
         )
         result = propagator.run(
             raster=array,

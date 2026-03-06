@@ -1,23 +1,14 @@
 """
 Core propagation engine.
 
-Two propagation conventions are supported:
+The propagator always works with the column-vector convention internally:
 
-  Transition convention (transition=True)  - default, matches Sofia's model:
-    x(t+dt)  = x(t) * T^n       (discrete)
-    x(t+dt)  = x(t) * expm(n*T) (continuous)
-  where T[i,j] = probability of moving FROM cell i TO cell j.
-  x is a row vector; repeated left-multiplication advances the distribution.
+    x(t+dt) = C @ x         (discrete:    C = T.T)
+    x(t+dt) = expm(n*C) @ x (continuous:  C = T.T)
 
-  Diffusion convention (transpose_connectivity=False)  - legacy:
-    x'  = C^n * x              (discrete)
-    x'  = expm(n*C) * x        (continuous)
-  where C[i,j] = influence of source cell j on destination cell i.
-  Matches the convolution kernel output of MatrixLoader.make_kernel().
-
-Both conventions are implemented internally as column-vector multiplication;
-when transpose_connectivity=True the matrix is transposed once in
-_prepare_matrix so that the rest of the code is formula-agnostic.
+The caller is responsible for passing the matrix in the correct orientation.
+If the source matrix T uses the row-vector convention (T[i,j] = flow from i
+to j, as in OpenDrift / Sofia), transpose it before passing: mat = T.T.
 
 Masked-domain support
 ---------------------
@@ -81,16 +72,19 @@ class SpatialPropagator:
     """
     Apply a connectivity / transition matrix to a raster for *n* steps.
 
+    The matrix must be passed in the column-vector convention: C[i,j] is the
+    contribution of source cell j to destination cell i (i.e. C = T.T when T
+    is the row-vector Lagrangian transition matrix).  Any transposition should
+    be done by the caller before passing the matrix here.
+
     Parameters
     ----------
     mode : str
-        ``"discrete"``   - repeated matrix multiplication (default)
-        ``"continuous"`` - matrix exponential  expm(n*T)
-    transpose_connectivity : bool
-        When ``True`` (default), the matrix is transposed internally so that
-        the formula ``x(t+dt) = x(t) * T`` (Sofia's convention) is applied.
-        Set to ``False`` for legacy diffusion kernels where the formula is
-        ``x' = C * x``.
+        ``"discrete"``   - repeated matrix multiplication  x' = C^n * x
+        ``"continuous"`` - matrix exponential              x' = expm(n*C) * x
+    normalise : bool
+        Row-normalise the matrix before propagation (Markov chain, conserves
+        total mass).  Applied to the matrix as received.  Default ``False``.
     clip_negative : bool
         Clip negative values in the output to 0.  Default ``True``.
     dtype : numpy dtype
@@ -100,7 +94,6 @@ class SpatialPropagator:
     def __init__(
         self,
         mode: str = "discrete",
-        transpose_connectivity: bool = True,
         clip_negative: bool = True,
         normalise: bool = False,
         dtype=np.float64,
@@ -108,7 +101,6 @@ class SpatialPropagator:
         if mode not in ("discrete", "continuous"):
             raise ValueError(f"mode must be 'discrete' or 'continuous', got '{mode}'")
         self.mode = mode
-        self.transpose_connectivity = transpose_connectivity
         self.clip_negative = clip_negative
         self.normalise = normalise
         self.dtype = dtype
@@ -260,12 +252,7 @@ class SpatialPropagator:
         return raster == nodata_value
 
     def _prepare_matrix(self, C, N: int):
-        """Validate dimensions, cast dtype, transpose when needed, optionally normalise.
-
-        When ``transpose_connectivity=True`` the matrix is transposed so that
-        the internal formula ``C_eff @ x`` is equivalent to ``x @ T``
-        (Sofia's row-vector convention).
-        """
+        """Validate dimensions, cast dtype, optionally row-normalise."""
         if issparse(C):
             C = C.astype(self.dtype)
         else:
@@ -277,14 +264,8 @@ class SpatialPropagator:
                 f"domain size N={N} (expected ({N},{N}))"
             )
 
-        # Row-normalise on the ORIGINAL matrix (before any transpose) so that
-        # rows always correspond to source cells regardless of convention.
         if self.normalise:
             C = self._row_normalise(C)
-
-        # Transpose: x @ T  ==  T.T @ x_col  ->  store T.T as the effective matrix
-        if self.transpose_connectivity:
-            C = C.T
 
         return C
 

@@ -140,43 +140,38 @@ class TestRunScenarios:
 
 
 # ---------------------------------------------------------------------------
-# Transpose connectivity (Sofia's x*T convention)
+# Transpose convention tests  (transpose is now the caller's responsibility)
 # ---------------------------------------------------------------------------
 
 class TestTransposeConnectivity:
 
-    def test_transpose_true_applies_xT_formula(self):
-        """With an asymmetric T, x*T != T*x; verify the correct formula is used."""
+    def test_row_vector_convention_x_times_T(self):
+        """OpenDrift convention: x*T.  Caller must pass T.T to the propagator."""
         # T: cell 0 -> cell 1 with weight 1 (all mass moves right)
         T = csr_matrix(np.array([[0.0, 1.0], [0.0, 1.0]], dtype=float))
         # rows=1, cols=2; x=[10, 0]
         raster = np.array([[10.0, 0.0]])
-        p = SpatialPropagator(mode="discrete", transpose_connectivity=True,
-                              clip_negative=False)
-        result = p.run(raster, T, iterations=1)
+        p = SpatialPropagator(mode="discrete", clip_negative=False)
+        result = p.run(raster, T.T, iterations=1)  # pass T.T
         # x(t+dt) = x @ T = [10, 0] @ [[0,1],[0,1]] = [0, 10]
         np.testing.assert_allclose(result.output, [[0.0, 10.0]], rtol=1e-10)
 
-    def test_transpose_false_applies_Cx_formula(self):
-        """With transpose=False the legacy C*x formula is used."""
-        # C: cell 0 receives from cell 1 (pull)
+    def test_column_vector_convention_C_times_x(self):
+        """Column-vector convention: C*x.  Pass C directly (no transpose)."""
+        # C: cell 0 receives from cell 1
         C = csr_matrix(np.array([[0.0, 1.0], [0.0, 1.0]], dtype=float))
         raster = np.array([[10.0, 0.0]])
-        p = SpatialPropagator(mode="discrete", transpose_connectivity=False,
-                              clip_negative=False)
+        p = SpatialPropagator(mode="discrete", clip_negative=False)
         result = p.run(raster, C, iterations=1)
         # x' = C @ x = [[0,1],[0,1]] @ [10,0] = [0, 0]
         np.testing.assert_allclose(result.output, [[0.0, 0.0]], rtol=1e-10)
 
-    def test_symmetric_matrix_same_either_way(self, identity_matrix, simple_raster):
-        """For symmetric T, transpose=True and transpose=False give the same result."""
-        p_t = SpatialPropagator(mode="discrete", transpose_connectivity=True,
-                                clip_negative=False)
-        p_f = SpatialPropagator(mode="discrete", transpose_connectivity=False,
-                                clip_negative=False)
-        res_t = p_t.run(simple_raster, identity_matrix, iterations=3)
-        res_f = p_f.run(simple_raster, identity_matrix, iterations=3)
-        np.testing.assert_allclose(res_t.output, res_f.output, rtol=1e-12)
+    def test_symmetric_matrix_transpose_is_identity(self, identity_matrix, simple_raster):
+        """For symmetric T, T == T.T so result is the same either way."""
+        p = SpatialPropagator(mode="discrete", clip_negative=False)
+        res_direct    = p.run(simple_raster, identity_matrix, iterations=3)
+        res_transposed = p.run(simple_raster, identity_matrix.T, iterations=3)
+        np.testing.assert_allclose(res_direct.output, res_transposed.output, rtol=1e-12)
 
 
 # ---------------------------------------------------------------------------
@@ -205,8 +200,7 @@ class TestCellIds:
         raster = np.where(mask == 1, 1.0, -9999.0)  # sea=1, land=nodata
         # Identity transition matrix (5x5) -> output = input for sea cells
         T = speye(N, format="csr")
-        p = SpatialPropagator(mode="discrete", transpose_connectivity=True,
-                              clip_negative=False)
+        p = SpatialPropagator(mode="discrete", clip_negative=False)
         result = p.run(raster, T, iterations=1, nodata_value=-9999.0,
                        cell_ids=cell_ids)
         # Land cells must remain nodata
