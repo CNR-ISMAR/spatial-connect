@@ -216,15 +216,6 @@ pytest tests/ -v
 
 ---
 
-## Rename the repository
-
-To rename the GitHub repository to `spatial-connect`:
-
-1. **GitHub** → repository page → **Settings** → **Repository name** → type `spatial-connect` → **Rename**.
-2. Update the remote locally: `git remote set-url origin https://github.com/CNR-ISMAR/spatial-connect.git`
-3. GitHub automatically redirects the old URL for existing clones.
-
----
 
 ## License
 
