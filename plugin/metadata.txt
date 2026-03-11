@@ -2,7 +2,7 @@
 name=SpatialConnect
 qgisMinimumVersion=3.16
 description=Multiply a raster by a Lagrangian connectivity / transition matrix (T) to propagate spatial distributions forward in time: x(t+dt) = x(t) · T.
-version=0.1.0
+version=0.1.2
 author=CNR-ISMAR
 email=info@ismar.cnr.it
 

@@ -71,7 +71,7 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
 
     Hidden / not exposed in UI (kept for programmatic use)
     -------------------------------------------------------
-    MASK       - explicit land/sea mask raster (auto-inferred from NaN cells when absent)
+    none
     """
 
     INPUT      = "INPUT"
@@ -90,6 +90,12 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
             self.INPUT,
             "Input raster (GeoTIFF - initial spatial distribution)"
         ))
+        mask_param = QgsProcessingParameterRasterLayer(
+            self.MASK,
+            "Domain mask raster (optional - defines which cells exist in the matrix)",
+            optional=True,
+        )
+        self.addParameter(mask_param)
         self.addParameter(QgsProcessingParameterFile(
             self.MATRIX,
             "Transition matrix file  (.mtx MatrixMarket or .npz scipy sparse)",
@@ -167,15 +173,11 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         mat = loader.load(matrix_path)
 
         # Build cell-ID mapping
-        # Priority: explicit MASK parameter (hidden, for programmatic use)
-        #           -> auto-detect from NaN/nodata cells in the raster
-        mask_layer = None
-        if parameters.get(self.MASK) is not None:
-            mask_src = parameters[self.MASK]
-            if hasattr(mask_src, 'source'):
-                mask_src = mask_src.source()
-            feedback.pushInfo(f"Building cell-ID mapping from explicit mask: {mask_src}")
-            mask_array, _ = RasterUtils.read_raster(mask_src)
+        # Priority: explicit MASK parameter -> auto-detect from NaN/nodata cells in the raster
+        mask_layer = self.parameterAsRasterLayer(parameters, self.MASK, context)
+        if mask_layer is not None:
+            feedback.pushInfo(f"Building cell-ID mapping from explicit mask: {mask_layer.source()}")
+            mask_array, _ = RasterUtils.read_raster(mask_layer.source())
             cell_ids = RasterUtils.compute_cell_ids(mask_array)
         else:
             cell_ids = None
@@ -248,6 +250,13 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
         "  discrete:    x(t+n*dt) = x(t) * T^n\n"
         "  continuous:  x(t+n*dt) = x(t) * expm(n*T)\n\n"
         "Supported matrix formats: MatrixMarket (.mtx) or NumPy sparse (.npz).\n\n"
+        "Domain mask (optional but recommended):\n"
+        "  If the matrix was built on a masked sub-domain (e.g. ocean-only cells),\n"
+        "  provide the reference mask raster here. This ensures the cell numbering\n"
+        "  used by the matrix matches the raster pixels exactly, regardless of the\n"
+        "  values in the input raster. If omitted, the mask is auto-detected from\n"
+        "  NaN/NoData cells in the input raster (works when input and mask have the\n"
+        "  same nodata pattern).\n\n"
         "Matrix convention (TRANSPOSE):\n"
         "  [x] checked (default) - T[i,j] = fraction flowing from cell i to cell j\n"
         "    (x*T row-vector convention)\n"
