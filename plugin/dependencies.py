@@ -18,10 +18,17 @@ import subprocess
 import sys
 
 # package-name -> importable module name (they differ for scikit-image etc.)
+# These must be present for the plugin to function at all.
 REQUIRED: dict[str, str] = {
     "scipy": "scipy",
-    "rasterio": "rasterio",
     "numpy": "numpy",
+}
+
+# Optional packages that improve the experience but are not strictly required.
+# rasterio: preferred I/O backend.  When absent the plugin falls back to
+#           osgeo.gdal / osgeo.ogr which ship with every QGIS installation.
+OPTIONAL: dict[str, str] = {
+    "rasterio": "rasterio",
 }
 
 
@@ -67,6 +74,7 @@ def ensure_dependencies(iface=None) -> bool:
     ]
 
     if not missing:
+        _check_optional(iface)
         return True
 
     _log(f"SpatialConnect: missing packages: {missing}. Trying to install...", iface)
@@ -102,7 +110,27 @@ def ensure_dependencies(iface=None) -> bool:
         return False
 
     _log(f"SpatialConnect: installed {missing} successfully.", iface)
+
+    # Inform about optional packages that are absent (non-fatal).
+    _check_optional(iface)
     return True
+
+
+def _check_optional(iface=None) -> None:
+    """Log an informational note about absent optional packages."""
+    absent = [
+        pkg for pkg, module in OPTIONAL.items()
+        if not _is_importable(module)
+    ]
+    if absent:
+        _log(
+            f"SpatialConnect: optional package(s) {absent} not found. "
+            "The plugin will use osgeo.gdal for raster I/O instead. "
+            "Install with: pip install rasterio  (optional, but recommended "
+            "for better out-of-QGIS compatibility).",
+            iface,
+            level="info",
+        )
 
 
 # -- helpers 
