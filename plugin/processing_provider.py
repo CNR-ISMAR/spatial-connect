@@ -191,7 +191,8 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
                 valid &= (arr2d != nodata_val)
             n_valid = int(valid.sum())
             n_matrix = mat.shape[0]
-            if 0 < n_valid < arr2d.size and n_valid == n_matrix:
+            if n_valid == n_matrix and n_valid < arr2d.size:
+                # Masked sub-domain: non-nodata cells match matrix size exactly.
                 flat_valid = valid.flatten()
                 cumsum_ids = np.cumsum(flat_valid) - 1
                 cell_ids = np.where(flat_valid, cumsum_ids, -1).reshape(arr2d.shape)
@@ -199,7 +200,22 @@ class PropagateRasterAlgorithm(QgsProcessingAlgorithm):
                     f"Auto cell-ID mapping: {n_valid} valid cells "
                     f"(nodata excluded) -> matches matrix ({n_matrix}x{n_matrix})"
                 )
-            elif n_valid != n_matrix and arr2d.size != n_matrix:
+            elif arr2d.size == n_matrix:
+                # Full-grid match: entire raster (all pixels) lines up with matrix.
+                if n_valid < arr2d.size:
+                    feedback.pushWarning(
+                        f"Matrix size ({n_matrix}) matches the full raster grid but the "
+                        f"input contains {arr2d.size - n_valid} nodata/NaN cells. "
+                        f"If the matrix was built on a masked sub-domain, provide an "
+                        f"explicit Mask raster to guarantee correct cell numbering."
+                    )
+                else:
+                    feedback.pushInfo(
+                        f"Full-grid mode: {arr2d.size} cells match "
+                        f"matrix ({n_matrix}x{n_matrix})"
+                    )
+                # cell_ids stays None -> propagator works on the flat full grid
+            else:
                 feedback.reportError(
                     f"Matrix size ({n_matrix}x{n_matrix}) matches neither the full raster "
                     f"({arr2d.size} cells) nor the non-nodata cells ({n_valid}). "
